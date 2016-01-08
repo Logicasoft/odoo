@@ -80,10 +80,14 @@ import openerp
 class AccountInvoiceLine(osv.Model):
     _inherit = 'account.invoice.line'
     _order = 'invoice_id, categ_sequence, sequence, id'
+    _columns = {
+        'sale_layout_cat_id': fields.many2one('sale_layout.category',
+                                              string='Section'),
+        'categ_sequence': fields.related('sale_layout_cat_id',
+                                         'sequence', type='integer',
+                                         string='Layout Sequence', store=True)
+    }
 
-    sale_layout_cat_id = openerp.fields.Many2one('sale_layout.category', string='Section')
-    categ_sequence = openerp.fields.Integer(related='sale_layout_cat_id.sequence',
-                                            string='Layout Sequence', store=True)
     _defaults = {
         'categ_sequence': 0
     }
