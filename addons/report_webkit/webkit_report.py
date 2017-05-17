@@ -57,7 +57,6 @@ _logger = logging.getLogger(__name__)
 
 def mako_template(text):
     """Build a Mako template.
-
     This template uses UTF-8 encoding
     """
     tmp_lookup  = TemplateLookup() #we need it in order to allow inclusion and inheritance
