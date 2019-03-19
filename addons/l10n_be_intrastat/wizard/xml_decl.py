@@ -183,18 +183,26 @@ class xml_decl(osv.TransientModel):
         decl = ET.Element('Report')
         if not extendedmode:
             decl.set('code', 'EX%sS' % declcode)
+            if declcode == "29":
+                decl.set('code', 'INTRASTAT_X_S')
         else:
             decl.set('code', 'EX%sE' % declcode)
+            if declcode == "29":
+                decl.set('code', 'INTRASTAT_X_E')
         decl.set('date', '%s-%s' % (decl_datas.year, decl_datas.month))
         datas = ET.SubElement(decl, 'Data')
         if not extendedmode:
             datas.set('form', 'EXF%sS' % declcode)
+            if declcode == "29":
+                datas.set('form', 'INTRASTAT_X_SF')
         else:
             datas.set('form', 'EXF%sE' % declcode)
+            if declcode == "29":
+                datas.set('form', 'INTRASTAT_X_EF')
         datas.set('close', 'true')
         intrastatkey = namedtuple("intrastatkey",
                                   ['EXTRF', 'EXCNT', 'EXTTA', 'EXREG',
-                                   'EXGO', 'EXTPC', 'EXDELTRM'])
+                                   'EXGO', 'EXTPC', 'EXDELTRM', 'EXCNTORI', 'PARTNERID'])
         entries = {}
 
         sqlreq = """
@@ -229,6 +237,14 @@ class xml_decl(osv.TransientModel):
         invoicelines_ids = [rec[0] for rec in lines]
         invoicelines = invoiceline_mod.browse(cr, uid, invoicelines_ids, context=context)
         for inv_line in invoicelines:
+            partner_vat = ''
+            excntori = ''
+            if declcode == '29':
+                if inv_line.invoice_id.partner_id.vat:
+                    partner_vat = inv_line.invoice_id.partner_id.vat
+                product_origin_country_id = inv_line.product_origin_country_id()
+                if product_origin_country_id:
+                    excntori = product_origin_country_id.code
 
             #Check type of transaction
             if inv_line.invoice_id.intrastat_transaction_id:
@@ -249,6 +265,7 @@ class xml_decl(osv.TransientModel):
             #which is linked to the warehouse
             #If none found, get the company one.
             exreg = None
+
             if inv_line.invoice_id.type in ('in_invoice', 'in_refund'):
                 #comes from purchase
                 POL = self.pool['purchase.order.line']
@@ -321,7 +338,7 @@ class xml_decl(osv.TransientModel):
                 exdeltrm = ""
             linekey = intrastatkey(EXTRF=declcode, EXCNT=excnt,
                                    EXTTA=extta, EXREG=exreg, EXGO=exgo,
-                                   EXTPC=extpc, EXDELTRM=exdeltrm)
+                                   EXTPC=extpc, EXDELTRM=exdeltrm, EXCNTORI=excntori, PARTNERID=partner_vat)
             #We have the key
             #calculate amounts
             if inv_line.price_unit and inv_line.quantity:
@@ -361,6 +378,9 @@ class xml_decl(osv.TransientModel):
             self._set_Dim(item, 'EXTXVAL', unicode(round(amounts[0], 0)).replace(".", ","))
             self._set_Dim(item, 'EXWEIGHT', unicode(round(amounts[1], 0)).replace(".", ","))
             self._set_Dim(item, 'EXUNITS', unicode(round(amounts[2], 0)).replace(".", ","))
+            if declcode == "29":
+                self._set_Dim(item, 'EXCNTORI', unicode(linekey.EXCNTORI))
+                self._set_Dim(item, 'PARTNERID', unicode(linekey.PARTNERID))
 
         if numlgn == 0:
             #no datas

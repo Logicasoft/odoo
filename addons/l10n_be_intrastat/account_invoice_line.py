@@ -18,8 +18,12 @@
 #    along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 ##############################################################################
+from openerp import models, fields, api
 
 
-import l10n_be_intrastat
-import account_invoice_line
-import wizard
+class AccountInvoiceLine(models.Model):
+    _inherit = "account.invoice.line"
+
+    @api.multi
+    def product_origin_country_id(self):
+        return False
