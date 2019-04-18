@@ -108,6 +108,9 @@
           if (/[^s]/.test(match[8]) && (get_type(arg) != 'number')) {
             throw new Error(sprintf('[_.sprintf] expecting number but found %s', get_type(arg)));
           }
+
+          var temp_arg = arg
+
           switch (match[8]) {
             case 'b': arg = arg.toString(2); break;
             case 'c': arg = String.fromCharCode(arg); break;
@@ -120,6 +123,13 @@
             case 'x': arg = arg.toString(16); break;
             case 'X': arg = arg.toString(16).toUpperCase(); break;
           }
+
+        if (match[8] == 'f') {
+              if (temp_arg >= 10000000) {
+                arg = match[7] ? temp_arg.toExponential(match[7]) : temp_arg.toExponential();
+              }
+          }
+
           arg = (/[def]/.test(match[8]) && match[3] && arg >= 0 ? '+'+ arg : arg);
           pad_character = match[4] ? match[4] == '0' ? '0' : match[4].charAt(1) : ' ';
           pad_length = match[6] - String(arg).length;
