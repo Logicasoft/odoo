@@ -80,9 +80,28 @@ var SnippetEditor = Widget.extend({
                     return $clone;
                 },
                 start: _.bind(self._onDragAndDropStart, self),
-                stop: _.bind(self._onDragAndDropStop, self)
+                stop: function () {
+                    // Delay our stop handler so that some summernote handlers
+                    // which occur on mouseup (and are themself delayed) are
+                    // executed first (this prevents the library to crash
+                    // because our stop handler may change the DOM).
+                    var args = arguments;
+                    setTimeout(function () {
+                        self._onDragAndDropStop.apply(self, args);
+                    }, 0);
+                },
             });
         }
+
+        this.$target.on('transitionstart.snippet_editor, animationstart.snippet_editor', function () {
+            self._targetIsAnimated = true;
+        });
+        this.$target.on('transitionend.snippet_editor, animationend.snippet_editor', function () {
+            self._targetIsAnimated = false;
+            if (self.$el.is('.oe_active')) {
+                self.cover();
+            }
+        });
 
         return $.when.apply($, defs);
     },
@@ -93,6 +112,7 @@ var SnippetEditor = Widget.extend({
         this.cleanForSave();
         this._super.apply(this, arguments);
         this.$target.removeData('snippet-editor');
+        this.$target.off('.snippet_editor');
     },
 
     //--------------------------------------------------------------------------
@@ -124,6 +144,11 @@ var SnippetEditor = Widget.extend({
      * Makes the editor overlay cover the associated snippet.
      */
     cover: function () {
+        if (this._targetIsAnimated) {
+            // Do not cover a target being animated, it will be covered once the
+            // animation is completed.
+            return;
+        }
         var offset = this.$target.offset();
         var manipulatorOffset = this.$el.parent().offset();
         offset.top -= manipulatorOffset.top;
@@ -324,6 +349,9 @@ var SnippetEditor = Widget.extend({
      */
     _onCloneClick: function (ev) {
         ev.preventDefault();
+
+        this.trigger_up('snippet_will_be_cloned', {$target: this.$target});
+
         var $clone = this.$target.clone(false);
 
         this.trigger_up('request_history_undo_record', {$target: this.$target});
@@ -339,7 +367,7 @@ var SnippetEditor = Widget.extend({
                 }
             },
         });
-        this.trigger_up('snippet_cloned', {$target: $clone});
+        this.trigger_up('snippet_cloned', {$target: $clone, $origin: this.$target});
     },
     /**
      * Called when the overlay dimensions/positions should be recomputed.
@@ -357,6 +385,7 @@ var SnippetEditor = Widget.extend({
      */
     _onDragAndDropStart: function () {
         var self = this;
+        this.dropped = false;
         self.size = {
             width: self.$target.width(),
             height: self.$target.height()
@@ -402,9 +431,20 @@ var SnippetEditor = Widget.extend({
      * 'move' button.
      *
      * @private
+     * @param {Event} ev
+     * @param {Object} ui
      */
-    _onDragAndDropStop: function () {
+    _onDragAndDropStop: function (ev, ui) {
         var self = this;
+
+        // TODO lot of this is duplicated code of the d&d feature of snippets
+        if (!this.dropped) {
+            var $el = $.nearest({x: ui.position.left, y: ui.position.top}, '.oe_drop_zone').first();
+            if ($el.length) {
+                $el.after(this.$target);
+                this.dropped = true;
+            }
+        }
 
         $('.oe_drop_zone').droppable('destroy').remove();
 
@@ -783,7 +823,7 @@ var SnippetsMenu = Widget.extend({
              && (float_next === 'left' || float_next === 'right')) {
                 zone.remove();
             } else if (disp_prev !== null && disp_next !== null
-             && disp_prev !== 'block' && disp_next !== 'block') {
+             && disp_prev.indexOf('inline') >= 0 && disp_next.indexOf('inline') >= 0) {
                 zone.remove();
             }
         });

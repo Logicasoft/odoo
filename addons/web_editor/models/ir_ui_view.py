@@ -205,11 +205,7 @@ class IrUiView(models.Model):
 
     @api.model
     def _view_get_inherited_children(self, view, options):
-        extensions = view.inherit_children_ids
-        if not options:
-            # only active children
-            extensions = extensions.filtered(lambda view: view.active)
-        return extensions
+        return view.inherit_children_ids
 
     @api.model
     def _view_obj(self, view_id):
@@ -256,6 +252,9 @@ class IrUiView(models.Model):
             if called_view and called_view not in views_to_return:
                 views_to_return += self._views_get(called_view, options=options, bundles=bundles)
 
+        if not options:
+            return views_to_return
+
         extensions = self._view_get_inherited_children(view, options)
 
         # Keep options in a deterministic order regardless of their applicability
@@ -273,5 +272,6 @@ class IrUiView(models.Model):
             ``bundles=True`` returns also the asset bundles
         """
         user_groups = set(self.env.user.groups_id)
-        views = self.with_context(active_test=False)._views_get(key, bundles=bundles)
+        View = self.with_context(active_test=False, lang=None)
+        views = View._views_get(key, bundles=bundles)
         return views.filtered(lambda v: not v.groups_id or len(user_groups.intersection(v.groups_id)))

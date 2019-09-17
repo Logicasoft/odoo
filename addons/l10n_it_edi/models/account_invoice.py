@@ -49,6 +49,12 @@ class AccountInvoice(models.Model):
 
     @api.multi
     def invoice_validate(self):
+        # Clean context from default_type to avoid making attachment
+        # with wrong values in subsequent operations
+        cleaned_ctx = dict(self.env.context)
+        cleaned_ctx.pop('default_type', None)
+        self = self.with_context(cleaned_ctx)
+
         super(AccountInvoice, self).invoice_validate()
         for invoice in self:
             if invoice.company_id.country_id != self.env.ref('base.it'):
@@ -89,7 +95,7 @@ class AccountInvoice(models.Model):
 
         # <1.2.1.8>
         if not seller.l10n_it_tax_system:
-            raise UserError("The seller's company must have a tax system.")
+            raise UserError(_("The seller's company must have a tax system."))
 
         # <1.2.2>
         if not seller.street and not seller.street2:
@@ -104,7 +110,7 @@ class AccountInvoice(models.Model):
             raise UserError(_("%s must have a country.") % (seller.display_name))
 
         # <1.4.1>
-        if not buyer.vat and not buyer.l10n_it_codice_fiscale:
+        if not buyer.vat and not buyer.l10n_it_codice_fiscale and buyer.country_id.code != 'IT':
             raise UserError(_("The buyer, %s, or his company must have either a VAT number either a tax code (Codice Fiscale).") % (buyer.display_name))
 
         # <1.4.2>
@@ -731,7 +737,7 @@ class AccountTax(models.Model):
         for tax in self:
             if tax.l10n_it_has_exoneration:
                 if not tax.l10n_it_kind_exoneration or not tax.l10n_it_law_reference or tax.amount != 0:
-                    raise ValidationError("If the tax has exoneration, you must enter a kind of exoneration, a law reference and the amount of the tax must be 0.0.")
+                    raise ValidationError(_("If the tax has exoneration, you must enter a kind of exoneration, a law reference and the amount of the tax must be 0.0."))
                 if tax.l10n_it_kind_exoneration == 'N6' and tax.l10n_it_vat_due_date == 'S':
                     raise UserError(_("'Scissione dei pagamenti' is not compatible with exoneration of kind 'N6'"))
 
