@@ -169,8 +169,11 @@ class FloatConverter(models.AbstractModel):
         else:
             precision = options['precision']
 
-        if precision is None:
+        if precision is None and value >= 1000000:
+            fmt = "%.1e"
+        elif precision is None:
             fmt = '%f'
+
         else:
             value = float_utils.float_round(value, precision_digits=precision)
             fmt = '%.{precision}f'.format(precision=precision)
@@ -181,7 +184,7 @@ class FloatConverter(models.AbstractModel):
         # it to switch to scientific notation starting at a million *and* to
         # strip decimals. So use %f and if no precision was specified manually
         # strip trailing 0.
-        if precision is None:
+        if precision is None and value < 1000000:
             formatted = re.sub(r'(?:(0|\d+?)0+)$', r'\1', formatted)
 
         return pycompat.to_text(formatted)
