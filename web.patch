@@ -1,0 +1,92 @@
+diff --git a/addons/website/controllers/main.py b/addons/website/controllers/main.py
+index 81d461830ef..bedd4e4bd19 100644
+--- a/addons/website/controllers/main.py
++++ b/addons/website/controllers/main.py
+@@ -66,6 +66,10 @@ class Website(Home):
+ 
+     @http.route('/', type='http', auth="public", website=True)
+     def index(self, **kw):
++        if 0:
++            import pdb
++            pdb.set_trace()
++            print("")
+         homepage = request.website.homepage_id
+         if homepage and (homepage.sudo().is_visible or request.env.user.has_group('base.group_user')) and homepage.url != '/':
+             return request.env['ir.http'].reroute(homepage.url)
+diff --git a/addons/website/models/ir_http.py b/addons/website/models/ir_http.py
+index 785d794e9ca..697f9f7d477 100644
+--- a/addons/website/models/ir_http.py
++++ b/addons/website/models/ir_http.py
+@@ -126,15 +126,22 @@ class Http(models.AbstractModel):
+     def _serve_page(cls):
+         req_page = request.httprequest.path
+         page_domain = [('url', '=', req_page)] + request.website.website_domain()
++        logger.info("page_domain: {}".format(page_domain))
+ 
+         published_domain = page_domain
+         # need to bypass website_published, to apply is_most_specific
+         # filter later if not publisher
+         pages = request.env['website.page'].sudo().search(published_domain, order='website_id')
+         pages = pages.filtered(pages._is_most_specific_page)
++        logger.info("pages 1: {}".format(pages))
+ 
++        if 0:
++            import pdb
++            pdb.set_trace()
++            print("")
+         if not request.website.is_publisher():
+             pages = pages.filtered('is_visible')
++        logger.info("pages 2: {}".format(pages))
+ 
+         mypage = pages[0] if pages else False
+         _, ext = os.path.splitext(req_page)
+diff --git a/addons/website/models/website.py b/addons/website/models/website.py
+index 7906ae318cf..c9e4cf5cbf0 100644
+--- a/addons/website/models/website.py
++++ b/addons/website/models/website.py
+@@ -1025,7 +1025,18 @@ class Page(models.Model):
+     @api.multi
+     def _is_most_specific_page(self, page_to_test):
+         '''This will test if page_to_test is the most specific page in self.'''
+-        pages_for_url = self.sorted(key=lambda p: not p.website_id).filtered(lambda page: page.url == page_to_test.url)
++        if 0:
++            def _p(p):
++                return not p.website_id
++            def _page(page):
++                return page.url == page_to_test.url
++            if 0:
++                import pdb
++                pdb.set_trace()
++                print("")
++            pages_for_url = self.sorted(key=_p).filtered(_page)
++        else:
++            pages_for_url = self.sorted(key=lambda p: not p.website_id).filtered(lambda page: page.url == page_to_test.url)
+ 
+         # this works because pages are _order'ed by website_id
+         most_specific_page = pages_for_url[0]
+diff --git a/odoo/addons/base/models/ir_qweb_fields.py b/odoo/addons/base/models/ir_qweb_fields.py
+index d0df08603e1..32979a7e9c1 100644
+--- a/odoo/addons/base/models/ir_qweb_fields.py
++++ b/odoo/addons/base/models/ir_qweb_fields.py
+@@ -169,8 +169,11 @@ class FloatConverter(models.AbstractModel):
+         else:
+             precision = options['precision']
+ 
+-        if precision is None:
++        if precision is None and value >= 1000000:
++            fmt = "%.1e"
++        elif precision is None:
+             fmt = '%f'
++
+         else:
+             value = float_utils.float_round(value, precision_digits=precision)
+             fmt = '%.{precision}f'.format(precision=precision)
+@@ -181,7 +184,7 @@ class FloatConverter(models.AbstractModel):
+         # it to switch to scientific notation starting at a million *and* to
+         # strip decimals. So use %f and if no precision was specified manually
+         # strip trailing 0.
+-        if precision is None:
++        if precision is None and value < 1000000:
+             formatted = re.sub(r'(?:(0|\d+?)0+)$', r'\1', formatted)
+ 
+         return pycompat.to_text(formatted)
