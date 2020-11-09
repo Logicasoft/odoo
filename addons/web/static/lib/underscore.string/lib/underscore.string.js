@@ -126,7 +126,7 @@
 
         if (match[8] == 'f') {
               if (temp_arg >= 10000000) {
-                arg = match[7] ? temp_arg.toExponential(match[7]) : temp_arg.toExponential();
+                arg = match[7] ? temp_arg.toExponential(1) : temp_arg.toExponential();
               }
           }
 
